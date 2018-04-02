@@ -1,7 +1,11 @@
 function render(element, parentDom) {
     const { type, props } = element;
-    const dom = document.createElement(type);
     
+    const isTextElement = type === "TEXT ELEMENT";
+    const dom = isTextElement
+        ? document.createTextNode("")
+        : document.createElement(type);
+
     const isListener = name => name.startsWith("on");
     Object.keys(props).filter(isListener).forEach(name => {
         const eventType = name.toLowerCase().substr(2);
