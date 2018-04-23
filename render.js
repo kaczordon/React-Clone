@@ -15,16 +15,25 @@ function reconcile(instance, parentDom, element) {
     // Remove instance
     parentDom.removeChild(instance.dom);
     return null;
-  } else if (instance.element.type === element.type) {
+  } else if (instance.element.type !== element.type) {
+    const newInstance = instantiate(element);
+		parentDom.replaceChild(newInstance.dom, instance.dom);
+		return newInstance;
+  } else if(typeof element.type === "string") {
     // Update instance
     updateDomProperties(instance.dom, instance.element.props, element.props);
     instance.childInstances = reconcileChildren(instance, element);
     instance.element = element;
     return instance;
 } else {
-		const newInstance = instantiate(element);
-		parentDom.replaceChild(newInstance.dom, instance.dom);
-		return newInstance;
+    instance.publicInstance.props = element.props;
+    const childElement = instance.publicInstance.render();
+    const oldChildInstance = instance.childInstance;
+    const childInstance = reconcile(oldChildInstance, parentDom, childElement);
+    instance.dom = childInstance.dom;
+    instance.childInstance = childInstance;
+    instance.element = element;
+    return instance;
 	}
 }
 
@@ -45,21 +54,33 @@ function reconcileChildren(instance, element) {
 
 function instantiate(element) {
     const { type, props } = element;
+    const isDomElement = typeof type === "string";
 
-    const isTextElement = type === "TEXT ELEMENT";
-    const dom = isTextElement
-        ? document.createTextNode("")
-        : document.createElement(type);
+    if(isDomElement) {
+      const isTextElement = type === "TEXT ELEMENT";
+      const dom = isTextElement
+          ? document.createTextNode("")
+          : document.createElement(type);
 
-    updateDomProperties(dom, [], props);
+      updateDomProperties(dom, [], props);
 
-    const childElements = props.children || [];
-    const childInstances = childElements.map(instantiate);
-    const childDoms = childInstances.map(childInstance => childInstance.dom);
-    childDoms.forEach(childDom => dom.appendChild(childDom));
+      const childElements = props.children || [];
+      const childInstances = childElements.map(instantiate);
+      const childDoms = childInstances.map(childInstance => childInstance.dom);
+      childDoms.forEach(childDom => dom.appendChild(childDom));
 
-    const instance = {dom, element, childInstances};
-    return instance;
+      const instance = {dom, element, childInstances};
+      return instance;
+    } else {
+      const instance = {};
+      const publicInstance = createPublicInstance(element, instance);
+      const childElement = publicInstance.render();
+      const childInstance = instantiate(childElement);
+      const dom = childInstance.dom;
+
+      Object.assign(instance, {dom, element, childInstance, publicInstance});
+      return instance;
+    }
 }
 
 
